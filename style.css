@@ -1,0 +1,135 @@
+body {
+  font-family: sans-serif;
+  font-size: 14px;
+}
+
+#notify {
+  height: 60px;
+}
+
+#notify div {
+  font-weight: bold;
+  color: white;
+  padding: 3px 20px;
+  text-align: center;
+  margin: auto;
+  width: 20em;
+  background: #f37d1f;
+  border: 1px solid #c05000;
+  border-top: 0;
+  -moz-border-radius: 0 0 4px 4px;
+}
+
+#app {
+  margin: auto;
+  width: 600px;
+}
+
+.tasklist {
+  -moz-border-radius: 4px;
+  border: 1px solid #aaa;
+  background: #eee;
+  padding: 6px;
+  width: 600px;
+}
+
+.tasklist h2 {
+  font-weight: bold;
+  margin: -6px;
+  padding: 6px;
+  margin-bottom: 18px;
+  background: #e0e0e0;
+  border-bottom: 1px solid #aaa;
+}
+
+.tasklist h3 {
+  font-weight: bold;
+  margin: 6px 0;
+  margin-top: 18px;
+}
+
+.tasklist ul.tasks {
+  background: white;
+  padding: 1px 6px;
+  -moz-border-radius: 4px;
+}
+
+.tasklist ul.tasks li.task {
+  padding: 6px; 
+  margin: 6px 0;
+  background: #f0f0f0;
+  background: #c0f0c0;
+  -moz-border-radius: 4px;
+}
+
+.tasklist ul.tasks li.done .title,
+.tasklist ul.tasks li.done .detail,
+.tasklist ul.tasks li.done .category {
+  text-decoration: line-through;
+  color: gray;
+  background: #e0e0e0;
+  border-color: gray;
+}
+
+.tasklist ul.tasks li.done {
+  background: #e0e0e0;
+}
+
+.tasklist ul.tasks li.task:hover {
+}
+
+.tasklist ul.tasks li.task div.title {
+  margin-bottom: 6px;
+}
+
+.tasklist ul.tasks li.task div.detail {
+  white-space: pre;
+}
+
+.tasklist ul.tasks li.task .controls a {
+  color: #ff0000;
+  text-decoration: none;
+  font-size: 12px;
+  padding: 0 3px;
+}
+
+.tasklist ul.tasks li.task .controls a:hover {
+  background: #ff0000;
+  color: white;
+}
+
+.tasklist ul.tasks li.task .controls {
+  visibility: hidden;
+  margin-top: 6px;
+  text-align: right;
+}
+
+.tasklist ul.tasks li.task:hover .controls {
+  visibility: visible;
+}
+
+.tasklist ul.tasks li.task .edit textarea {
+  width: 570px;
+  height: 100px;
+}
+
+.tasklist ul.tasks li.task .edit .error {
+  background: #ffcccc;
+}
+
+.tasklist ul.tasks li.task .edit a {
+  color: blue;
+}
+
+.tasklist li.task .category {
+  background: #00ff55;
+  border: 1px solid #00cc22;
+  padding: 0px 3px;
+  font-size: 12px;
+}
+
+.tasklist .controls {
+}
+
+.tasklist .controls {
+}
