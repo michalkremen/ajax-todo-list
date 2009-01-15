@@ -1,0 +1,46 @@
+ajax-todo-list - simple AJAX based single user TODO list
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+AJAX Todo List is an example of good MVC based client side application
+design.
+
+I am not planning for further development of this application right now.
+This may change in the future.
+
+Try demo at: http://ajax-todo-list.megous.com/
+
+Features:
+
+- Client side based TODO list with task categories that communicates
+  with server using JSON-RPC 1.1.
+- Clean OOP design based on the MVC pattern.
+- No authentication.
+- Almost completely stylable by CSS.
+- KISS server side.
+
+Compatibility:
+
+- Tested in Safari 3.1.2, IE 6.0, IE 7.0, Firefox 3
+
+Missing stuff:
+
+- Show only recent TODOs (show only this week's tasks or so).
+- Push missed tasks to today.
+
+Installation:
+
+- Copy files to the directory on the server.
+- Create database.
+- Configure database access (username, password).
+- Done.
+
+How you can help to improve the application:
+
+- Feel free to contact me if you would like to add more features.
+
+License:
+
+- Public Domain, or possibly GPL because of Texy! integration. I don't
+  really care about the licensing stuff.
+
+  ~ Ondrej Jirman <megous@megous.com>
