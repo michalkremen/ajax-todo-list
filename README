@@ -14,25 +14,21 @@ Features:
 - Client side based TODO list with task categories that communicates
   with server using JSON-RPC 1.1.
 - Clean OOP design based on the MVC pattern.
-- No authentication.
+- You can use Texy! HTML formating in the note.
+- Trivial installation (copy and mkdir -m 0777 db).
 - Almost completely stylable by CSS.
+- No authentication.
 - KISS server side.
 
 Compatibility:
 
 - Tested in Safari 3.1.2, IE 6.0, IE 7.0, Firefox 3
 
-Missing stuff:
-
-- Show only recent TODOs (show only this week's tasks or so).
-- Push missed tasks to today.
-
 Installation:
 
 - Copy files to the directory on the server.
-- Create database.
-- Configure database access (username, password).
-- Done.
+- Create directory db/ writable by the webserver.
+- Enjoy TODOing!
 
 How you can help to improve the application:
 
