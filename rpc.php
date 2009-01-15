@@ -41,7 +41,7 @@ class gtd_rpc_server extends json_rpc_server
   public function getTasks()
   {
     $obj = new stdClass;
-    $obj->tasks = $GLOBALS['db']->iquery("SELECT * FROM tasks ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+    $obj->tasks = $GLOBALS['db']->iquery("SELECT *, tasks.category_id AS category FROM tasks ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($obj->tasks as &$task)
       $task['html'] = texy_process($task['detail']);
     $obj->categories = $GLOBALS['db']->iquery("SELECT * FROM categories ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
@@ -57,7 +57,8 @@ class gtd_rpc_server extends json_rpc_server
 
   public function createCategory($name)
   {
-    return $GLOBALS['db']->col_iquery("INSERT INTO categories(name) VALUES (?) RETURNING id", $name);
+    $id = $GLOBALS['db']->col_iquery("INSERT INTO categories(name) VALUES (?) RETURNING id", $name);
+    return array('id' => $id);
   }
 
   public function updateTask($task)

@@ -4,52 +4,60 @@ var G = {};
 
 G.Task = Class.create(X.Signals,
 {
-  initialize: function(title, detail, category, exdate, status)
+  initialize: function(data)
   {
-    this.title = title;
-    this.detail = detail;
-    this.category = category;
-    this.exdate = typeof exdate == 'date' ? exdate : Date.parse(exdate);
-    this.status = status;
+    this.setFrom({
+      title: '',
+      detail: '',
+      done: false,
+      exdate: Date.today(),
+      category: G.app.tasks.categories.first()
+    });
+    this.setFrom(data);
   },
 
-  setTitle: function(text)
+  setFrom: function(data)
   {
-    this.title = text;
-    this.emit('changed', 'title');
+    var changed = $A();
+    ['title', 'detail', 'done', 'id', 'exdate', 'category', 'html'].each(function(param) {
+      if (!Object.isUndefined(data[param]))
+      {
+        if (param == 'exdate')
+        {
+          var exdate = Date.parse(data[param].toString());
+          if (!exdate)
+            exdate = Date.today();
+          if (Object.isUndefined(this.exdate) || !this.exdate.equals(exdate))
+            changed.push(param);
+          this.exdate = exdate;
+        }
+        else if (param == 'category')
+        {
+          var category = data[param];
+          if (Object.isNumber(category))
+            category = G.app.tasks.categories.find(function(c) { return c.id == category; });
+          //XXX: category may not exist
+          if (Object.isUndefined(this.category) || this.category.id != category.id)
+            changed.push(param);
+          this.category = category;
+        }
+        else
+        {
+          if (Object.isUndefined(this[param]) || this[param] != data[param])
+            changed.push(param);
+          this[param] = data[param];
+        }
+      }
+    }, this);
+
+    if (changed.size() > 0)
+      this.emit('changed', changed);
   },
 
-  setDetail: function(text)
+  toggleDone: function()
   {
-    this.detail = text;
-    this.emit('changed', 'detail');
-  },
-
-  setExDate: function(exdate)
-  {
-    var new_exdate = typeof exdate == 'date' ? exdate : Date.parse(exdate);
-    if (!this.exdate || !this.exdate.equals(new_exdate))
-    {
-      this.exdate = new_exdate;
-      this.emit('changed', 'exdate');
-    }
-  },
-
-  setCategory: function(category)
-  {
-    this.category = category;
-    this.emit('changed', 'category');
-  },
-
-  toggleStatus: function()
-  {
-    this.setStatus(this.status.name == 'active' ? G.app.task_statuses.done : G.app.task_statuses.active);
-  },
-
-  setStatus: function(status)
-  {
-    this.status = status;
-    this.emit('changed', 'state');
+    this.done = !this.done;
+    this.emit('changed', ['done']);
   },
 
   destroy: function()
@@ -65,7 +73,7 @@ G.Task = Class.create(X.Signals,
     data.detail = this.detail;
     data.exdate = this.exdate.toString('yyyy-MM-dd');
     data.category_id = this.category.id;
-    data.done = this.status.name == 'done';
+    data.done = this.done;
     return data;
   }
 });
@@ -75,15 +83,26 @@ G.Task = Class.create(X.Signals,
 
 G.TaskCategory = Class.create(X.Signals,
 {
-  initialize: function(title)
+  initialize: function(data)
   {
-    this.title = title;
+    this.setFrom({name: '', id: null});
+    this.setFrom(data);
   },
 
-  setTitle: function(text)
+  setFrom: function(data)
   {
-    this.title = text;
-    this.emit('changed', 'title');
+    var changed = $A();
+    ['name', 'id'].each(function(param) {
+      if (!Object.isUndefined(data[param]))
+      {
+        if (Object.isUndefined(this[param]) || this[param] != data[param])
+          changed.push[param];
+        this[param] = data[param];
+      }
+    }, this);
+
+    if (changed.size() > 0)
+      this.emit('changed', changed);
   },
 
   destroy: function()
@@ -93,66 +112,51 @@ G.TaskCategory = Class.create(X.Signals,
 });
 
 /* }}} */
-/* {{{ Data model: G.TaskState */
-
-G.TaskState = Class.create(X.Signals,
-{
-  initialize: function(name, title)
-  {
-    this.name = name;
-    this.title = title;
-  }
-});
-
-/* }}} */
 /* {{{ Data model: G.TaskList */
 
-/** List of tasks.
- *
- * - The list monitors tasks for destruction and changes and updates itself.
- * - You can query the list for various views on the tasks. (groupped by day,
- *   etc.)
+/** List of tasks synchronized with the server.
  */
 G.TaskList = Class.create(X.Signals,
 {
-  initialize: function()
+  initialize: function(rpc)
   {
-    this.clear();
+    this.tasks = $A();
+    this.categories = $A();
+    this.rpc = rpc;
   },
 
-  clear: function()
-  {
-    this.list = $A();
-  },
+  /* {{{ Internal methods */
 
   addTask: function(task)
   {
-    this.list.push(task);
-    task.connect('changed', this.taskChange.bind(this));
-    task.connect('destroyed', this.taskDestroy.bind(this, task));
+    this.tasks.push(task);
+    task.connect('changed', this.taskChanged, this);
+    task.connect('destroyed', this.taskDestroyed, this, task);
     this.emit('changed', 'add');
   },
 
-  delTask: function(task)
+  removeTask: function(task)
   {
-    this.list = this.list.without(task);
+    this.tasks = this.tasks.without(task);
     this.emit('changed', 'remove');
   },
 
-  taskChange: function(field)
+  taskChanged: function(fields)
   {
-    if (field == 'exdate')
+    if (fields.include('exdate'))
       this.emit('changed', 'date');
   },
 
-  taskDestroy: function(task)
+  taskDestroyed: function(task)
   {
-    this.delTask(task);
+    this.removeTask(task);
   },
+
+  /* }}} */
 
   getTasks: function()
   {
-    return this.list;
+    return this.tasks;
   },
 
   getTasksByDay: function(from_date, to_date)
@@ -160,7 +164,7 @@ G.TaskList = Class.create(X.Signals,
     var groups = $A();
     var last_group;
 
-    this.list.select(function(t) {  
+    this.tasks.select(function(t) {  
       if (from_date && t.exdate.isBefore(from_date))
         return false;
       if (to_date && t.exdate.isAfter(to_date))
@@ -182,7 +186,84 @@ G.TaskList = Class.create(X.Signals,
     });
 
     return groups;
+  },
+
+  /* {{{ Server communication routines */
+
+  load: function()
+  {
+    this.emit('rpc', 'load-pre');
+    this.rpc.call('getTasks', (function(retval) {
+      // update categories list from the server
+      this.categories = $A();
+      retval.categories.each(function(data) {
+        this.categories.push(new G.TaskCategory(data));
+      }, this);
+      this.emit('categories-changed');
+
+      this.freezeSignals();
+      // drop removed tasks
+      this.tasks.each(function(old_task) {
+        var new_task = retval.tasks.find(function(t) { return t.id == old_task.id });
+        if (!new_task)
+          old_task.destroy();
+      }, this);
+
+      // update tasks list from the server
+      retval.tasks.each(function(data) {
+        var old_task = this.tasks.find(function(t) { return t.id == data.id });
+        if (old_task)
+          old_task.setFrom(data);
+        else
+          this.addTask(new G.Task(data));
+      }, this);
+      this.thawSignals();
+      this.emit('changed', 'load');
+
+      this.emit('rpc', 'load-post');
+    }).bind(this));
+  },
+
+  createTask: function(task)
+  {
+    this.emit('rpc', 'create-task-pre');
+    this.rpc.call('createTask', (function(retval) {
+      task.setFrom(retval);
+      this.addTask(task);
+      this.emit('rpc', 'create-task-post');
+    }).bind(this), task.getData());
+  },
+
+  updateTask: function(task)
+  {
+    this.emit('rpc', 'update-task-pre');
+    this.rpc.call('updateTask', (function(retval) {
+      task.setFrom(retval);
+      this.emit('rpc', 'update-task-post');
+    }).bind(this), task.getData());
+  },
+
+  deleteTask: function(task)
+  {
+    this.emit('rpc', 'delete-task-pre');
+    this.rpc.call('deleteTask', (function(retval) {
+      task.destroy();
+      this.emit('rpc', 'delete-task-post');
+    }).bind(this), task.id);
+  },
+
+  createCategory: function(category)
+  {
+    this.emit('rpc', 'create-category-pre');
+    this.rpc.call('createCategory', (function(retval) {
+      category.setFrom(retval);
+      this.categories.push(category);
+      this.emit('categories-changed');
+      this.emit('rpc', 'create-category-post');
+    }).bind(this), category.name);
   }
+
+  /* }}} */
 });
 
 /* }}} */
@@ -256,7 +337,7 @@ G.TaskEditor = Class.create(X.Signals,
     // fill categories select
     this.b_newcat.observe('click', this.onNewCategoryClick.bindAsEventListener(this));
     this.loadCategoryOptions();
-    G.app.connect('categories-changed', this.loadCategoryOptions.bind(this));
+    G.app.tasks.connect('categories-changed', this.loadCategoryOptions.bind(this));
 
     // date parser/validator/selector
     this.i_date.setValue('today');
@@ -273,10 +354,9 @@ G.TaskEditor = Class.create(X.Signals,
   {
     var selected = this.i_category.getValue();
     this.i_category.update();
-    log(G.app.task_categories);
-    G.app.task_categories.each(function(c) {
+    G.app.tasks.categories.each(function(c) {
       var option = new Element('option', {value: c.id});
-      option.update(c.title.escapeHTML());
+      option.update(c.name.escapeHTML());
       this.i_category.insert(option);
     }, this);
     this.i_category.setValue(selected);
@@ -295,10 +375,7 @@ G.TaskEditor = Class.create(X.Signals,
     event.stop();
     var name = prompt('Zadejte prosím název nové kategorie:');
     if (name && name.strip().length > 0)
-    {
-      var cat = new G.TaskCategory(name);
-      G.app.createCategory(cat);
-    }
+      G.app.tasks.createCategory(new G.TaskCategory({name: name.strip()}));
     else
       G.app.notify.notify('Kategorie NEBYLA vytvořena');
   },
@@ -381,19 +458,7 @@ G.TaskEditor = Class.create(X.Signals,
   },
 
   /* }}} */
-  /* {{{ Form data load/save */
-
-  getData: function()
-  {
-    var data = {};
-    var category_id = this.i_category.getValue();
-    var lines = $A(this.i_text.getValue().strip().split(/\n/));
-    data.title = lines.shift();
-    data.detail = lines.join("\n").strip();
-    data.exdate = this.i_date.getValue();
-    data.category = G.app.task_categories.find(function(c) { return c.id == category_id });
-    return data;
-  },
+  /* {{{ Form data */
 
   setFromTask: function(task)
   {
@@ -403,19 +468,16 @@ G.TaskEditor = Class.create(X.Signals,
     this.checkInput();
   },
 
-  updateTask: function(task)
+  getData: function()
   {
-    var data = this.getData();
-    task.setTitle(data.title);
-    task.setDetail(data.detail);
-    task.setCategory(data.category);
-    task.setExDate(data.exdate);
-  },
-
-  createTask: function()
-  {
-    var data = this.getData();
-    return new G.Task(data.title, data.detail, data.category, data.exdate, G.app.task_statuses.active);
+    var data = {};
+    var category_id = this.i_category.getValue();
+    var lines = $A(this.i_text.getValue().strip().split(/\n/));
+    data.title = lines.shift();
+    data.detail = lines.join("\n").strip();
+    data.exdate = this.i_date.getValue();
+    data.category = Number(category_id);
+    return data;
   }
 
   /* }}} */
@@ -470,7 +532,7 @@ G.NewTaskView = Class.create(X.Signals,
 
   onNewTaskSave: function()
   {
-    this.emit('save', this.editor.createTask());
+    this.emit('save', new G.Task(this.editor.getData()));
   }
 });
 
@@ -566,7 +628,8 @@ G.TaskView = Class.create(X.Signals,
 
   onEditSave: function()
   {
-    this.editor.updateTask(this.task);
+    this.task.setFrom(this.editor.getData());
+    G.app.tasks.updateTask(this.task);
   },
 
   onEditDone: function()
@@ -579,13 +642,14 @@ G.TaskView = Class.create(X.Signals,
 
   onDeleteClick: function(event)
   {
-    this.task.destroy();
+    G.app.tasks.deleteTask(this.task);
     event.stop();
   },
 
   onStateClick: function(event)
   {
-    this.task.toggleStatus();
+    this.task.toggleDone();
+    G.app.tasks.updateTask(this.task);
     event.stop();
   },
 
@@ -596,7 +660,6 @@ G.TaskView = Class.create(X.Signals,
   {
     this.task = task;
     this.task.connect('changed', this.onTaskChange.bind(this));
-    this.task.connect('gothtml', this.onTaskChange.bind(this));
     this.setFromTask(task);
   },
 
@@ -607,15 +670,14 @@ G.TaskView = Class.create(X.Signals,
 
   setFromTask: function(task)
   {
-    var active = task.status.name == 'active';
     this.e_title.update(task.title.escapeHTML());
-    this.e_category.update(task.category.title.escapeHTML());
+    this.e_category.update(task.category.name.escapeHTML());
     this.e_detail.update(task.html ? task.html : task.detail.escapeHTML());
-    this.b_state.update(active ? 'hotovo' : 'není hotovo');
-    if (active)
-      this.element.removeClassName('done');
-    else
+    this.b_state.update(!task.done ? 'hotovo' : 'není hotovo');
+    if (task.done)
       this.element.addClassName('done');
+    else
+      this.element.removeClassName('done');
   }
 
   /* }}} */
@@ -671,11 +733,7 @@ G.TaskListView = Class.create(X.Signals,
 
   onNewTaskSave: function(view, task)
   {
-    //view.hide(true);
-    //this.b_newtask.enable();
-    G.app.tasks.addTask(task);
-    G.app.createTask(task);
-    this.renderDays();
+    G.app.tasks.createTask(task);
   },
 
   /* }}} */
@@ -782,96 +840,28 @@ G.App = Class.create(X.Signals,
   {
     this.element = $(el);
 
-    // load default options
-    this.options = Object.extend({
-      rpcpath: ''
-    }, arguments[1] || {});
-
-    // initialize notificator widget
     this.notify = new G.Notify('notify');
     this.rpc = new X.RPC('rpc.php');
-    this.rpc.connect('error', (function(e) { this.notify.notify(e.message); }).bind(this));
+    this.rpc.connect('error', function(e) { this.notify.notify(e.message); }, this);
 
-    // load test data
-    this.task_statuses = {};
-    this.task_statuses.done = new G.TaskState('done', 'Hotovo');
-    this.task_statuses.active = new G.TaskState('active', 'Aktivní');
-
-    this.tasks = new G.TaskList();  // global task list, contains all tasks
-    this.tasks.connect('changed', (function() { 
+    // global task list, contains all tasks
+    this.tasks = new G.TaskList(this.rpc);
+    this.tasks.connect('rpc', function(action) {
+      this.notify.notify(action);
+    }, this);
+    this.tasks.connect('changed', function() { 
       this.view.renderDays(); 
-      this.view2.renderDays(); 
-    }).bind(this));
+      //this.view2.renderDays(); 
+    }, this);
 
     // create tasks view
     this.view = new G.TaskListView('Všechny úkoly');
-    this.view2 = new G.TaskListView('Všechny úkoly 2');
     this.element.insert(this.view.element);
-    this.element.insert(this.view2.element);
+    //this.view2 = new G.TaskListView('Všechny úkoly 2');
+    //this.element.insert(this.view2.element);
 
-    this.loadTasks();
+    this.tasks.load();
   },
-
-  loadTasks: function()
-  {
-    this.tasks.clear();
-    this.rpc.call('getTasks', (function(retval) {
-      this.task_categories = $A();
-      retval.categories.each(function(c) {
-        var category = new G.TaskCategory(c.name);
-        category.id = c.id;
-        this.task_categories.push(category);
-      }, this);
-      retval.tasks.each(function(t) {
-        var task = new G.Task(t.title, t.detail, this.task_categories.find(function(c) { return c.id == t.category_id }), t.exdate, t.done ? this.task_statuses.done : this.task_statuses.active);
-        task.id = t.id;
-        task.html = t.html;
-        this.tasks.addTask(task);
-        task.connect('destroyed', this.deleteTask.bind(this, task));
-        task.connect('changed', this.updateTask.bind(this, task));
-      }, this);
-      this.notify.notify('Úkoly byly načteny');
-      this.view.renderDays();
-    }).bind(this));
-  },
-
-  createCategory: function(category)
-  {
-    this.rpc.call('createCategory', (function(retval) {
-      category.id = retval;
-      this.notify.notify('Kategorie byla vytvořena');
-      this.task_categories.push(category);
-      this.emit('categories-changed');
-    }).bind(this), category.title);
-  },
-
-  createTask: function(task)
-  {
-    this.rpc.call('createTask', (function(retval) {
-      task.id = retval.id;
-      task.html = retval.html;
-      task.emit('gothtml');
-      task.connect('destroyed', this.deleteTask.bind(this, task));
-      task.connect('changed', this.updateTask.bind(this, task));
-      this.notify.notify('Úkol byl uložen');
-    }).bind(this), task.getData());
-  },
-
-  updateTask: function(task)
-  {
-    this.rpc.call('updateTask', (function(retval) {
-      task.html = retval.html;
-      task.emit('gothtml');
-      this.notify.notify('Úkol byl aktualizován');
-    }).bind(this), task.getData());
-  },
-
-  deleteTask: function(task)
-  {
-    this.rpc.call('deleteTask', (function(retval) {
-      this.notify.notify('Úkol byl odstraněn');
-    }).bind(this), task.id);
-  }
 });
 
 /* }}} */

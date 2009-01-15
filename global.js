@@ -7,22 +7,50 @@ function log(str)
 
 X.Signals =
 {
+  /** Connect the signal handler.
+   *
+   * name: name of the signal
+   * func: signal handler
+   * ctx: context in which the signal handler should run (this)
+   * args...: additional arguments
+   *
+   * Example:
+   * this.name = 'c';
+   * someobj.connect('changed', function(msg1, msg2) { alert(msg1 + msg2 + this.name); }, this, 'a');
+   * someobj.emit('changed', 'b');
+   *
+   * This would result in message box popping up with a string 'a b c'.
+   */
   connect: function(name, func)
   {
     if (!Object.isArray(this._signals))
       this._signals = [];
     if (!Object.isArray(this._signals[name]))
       this._signals[name] = [];
+    if (arguments.length > 2)
+      func = func.bind.apply(func, $A(arguments).slice(2));
     this._signals[name].push(func);
   },
 
   emit: function(name)
   {
-    var self = this;
-    var args = $A(arguments).slice(1);
-    if (!Object.isArray(this._signals))
-      this._signals = [];
-    (this._signals[name] || []).collect(function(func) { func.apply(self, args); });
+    if (!this._signals_freezed)
+    {
+      var self = this, args = $A(arguments).slice(1);
+      if (!Object.isArray(this._signals))
+        this._signals = [];
+      return (this._signals[name] || []).collect(function(func) { return func.apply(self, args); });
+    }
+  },
+
+  freezeSignals: function()
+  {
+    this._signals_freezed = true;
+  },
+
+  thawSignals: function()
+  {
+    this._signals_freezed = false;
   }
 };
 
