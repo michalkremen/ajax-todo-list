@@ -486,7 +486,7 @@ G.TaskView = Class.create(X.Signals,
     this.element.update(
       '<div class="title"><span class="category"></span> <span class="title"></span></div>'+
       '<div class="edit"></div>'+
-      '<div class="detail"></div>'+
+      '<div class="detail content"></div>'+
       '<div class="controls">'+
       '<a href="" class="btn_edit">upravit</a> | <a href="" class="btn_delete">smazat</a> | <a class="btn_state" href="">hotovo</a>'+
       '</div>'
@@ -596,6 +596,7 @@ G.TaskView = Class.create(X.Signals,
   {
     this.task = task;
     this.task.connect('changed', this.onTaskChange.bind(this));
+    this.task.connect('gothtml', this.onTaskChange.bind(this));
     this.setFromTask(task);
   },
 
@@ -609,7 +610,7 @@ G.TaskView = Class.create(X.Signals,
     var active = task.status.name == 'active';
     this.e_title.update(task.title.escapeHTML());
     this.e_category.update(task.category.title.escapeHTML());
-    this.e_detail.update(task.detail.escapeHTML());
+    this.e_detail.update(task.html ? task.html : task.detail.escapeHTML());
     this.b_state.update(active ? 'hotovo' : 'není hotovo');
     if (active)
       this.element.removeClassName('done');
@@ -824,6 +825,7 @@ G.App = Class.create(X.Signals,
       retval.tasks.each(function(t) {
         var task = new G.Task(t.title, t.detail, this.task_categories.find(function(c) { return c.id == t.category_id }), t.exdate, t.done ? this.task_statuses.done : this.task_statuses.active);
         task.id = t.id;
+        task.html = t.html;
         this.tasks.addTask(task);
         task.connect('destroyed', this.deleteTask.bind(this, task));
         task.connect('changed', this.updateTask.bind(this, task));
@@ -846,7 +848,9 @@ G.App = Class.create(X.Signals,
   createTask: function(task)
   {
     this.rpc.call('createTask', (function(retval) {
-      task.id = retval;
+      task.id = retval.id;
+      task.html = retval.html;
+      task.emit('gothtml');
       task.connect('destroyed', this.deleteTask.bind(this, task));
       task.connect('changed', this.updateTask.bind(this, task));
       this.notify.notify('Úkol byl uložen');
@@ -856,6 +860,8 @@ G.App = Class.create(X.Signals,
   updateTask: function(task)
   {
     this.rpc.call('updateTask', (function(retval) {
+      task.html = retval.html;
+      task.emit('gothtml');
       this.notify.notify('Úkol byl aktualizován');
     }).bind(this), task.getData());
   },

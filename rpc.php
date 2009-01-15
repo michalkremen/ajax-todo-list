@@ -6,7 +6,7 @@ require_once "texy.compact.php";
 
 function texy_process($texy_text)
 {
-  require_once "arch/external/texy/texy.compact.php";
+  require_once "texy.compact.php";
 
   $texy = new Texy();
   $texy->allowed['emoticon'] = false;
@@ -42,14 +42,17 @@ class gtd_rpc_server extends json_rpc_server
   {
     $obj = new stdClass;
     $obj->tasks = $GLOBALS['db']->iquery("SELECT * FROM tasks ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($obj->tasks as &$task)
+      $task['html'] = texy_process($task['detail']);
     $obj->categories = $GLOBALS['db']->iquery("SELECT * FROM categories ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
     return $obj;
   }
 
   public function createTask($task)
   {
-    return $GLOBALS['db']->col_iquery("INSERT INTO tasks(title, detail, exdate, category_id, done) VALUES (?, ?, ?, ?, ?) RETURNING id", 
+    $id = $GLOBALS['db']->col_iquery("INSERT INTO tasks(title, detail, exdate, category_id, done) VALUES (?, ?, ?, ?, ?) RETURNING id", 
       $task->title, $task->detail, $task->exdate, (int)$task->category_id, $task->done ? 'true' : 'false');
+    return array('id' => $id, 'html' => texy_process($task->detail));
   }
 
   public function createCategory($name)
@@ -61,6 +64,7 @@ class gtd_rpc_server extends json_rpc_server
   {
     $GLOBALS['db']->iquery("UPDATE tasks SET title = ?, detail = ?, exdate = ?, category_id = ?, done = ? WHERE id = ?", 
       $task->title, $task->detail, $task->exdate, (int)$task->category_id, $task->done ? 'true' : 'false', (int)$task->id);
+    return array('id' => $task->id, 'html' => texy_process($task->detail));
   }
 
   public function deleteTask($task_id)
