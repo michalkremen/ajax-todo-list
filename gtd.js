@@ -385,11 +385,11 @@ G.TaskEditor = Class.create(X.Signals,
     this.element = $(el);
     this.element.update(
       '<div class="error"></div>'+
-      '<label>Kategorie:</label> <select name="category"></select> <a class="btn_newcat" href="#">nová...</a><br/>'+
-      '<label>Datum:</label> <input type="text" name="date" /> <a class="btn_date" href=""></a><br/>'+
+      '<label>'+TE('TASKEDITOR_CATEGORY')+':</label> <select name="category"></select> <a class="btn_newcat" href="#">'+TE('TASKEDITOR_NEW_CATEGORY')+'</a><br/>'+
+      '<label>'+TE('TASKEDITOR_DATE')+':</label> <input type="text" name="date" /> <a class="btn_date" href=""></a><br/>'+
       '<textarea name="text"></textarea><br/>'+
-      '<input type="button" class="btn_save" value="Uložit" />'+
-      '<input type="button" class="btn_cancel" value="Zrušit" />'
+      '<input type="button" class="btn_save" value="'+TE('TASKEDITOR_SAVE')+'" />'+
+      '<input type="button" class="btn_cancel" value="'+TE('TASKEDITOR_CANCEL')+'" />'
     );
     this.i_category = this.element.select('select[name=category]').first();
     this.i_date = this.element.select('input[name=date]').first();
@@ -443,11 +443,11 @@ G.TaskEditor = Class.create(X.Signals,
   onNewCategoryClick: function(event)
   {
     event.stop();
-    var name = prompt('Zadejte prosím název nové kategorie:');
+    var name = prompt(T('TASKEDITOR_NEW_CATEGORY_PROMPT'));
     if (name && name.strip().length > 0)
       G.app.tasks.createCategory(new G.TaskCategory({name: name.strip()}));
     else
-      G.app.notify.notify('Kategorie NEBYLA vytvořena');
+      G.app.notify.notify(T('TASKEDITOR_NEW_CATEGORY_FAILED'));
   },
 
   /* }}} */
@@ -480,7 +480,7 @@ G.TaskEditor = Class.create(X.Signals,
     {
       this.b_date.update('dnes');
       this.i_date.addClassName('error');
-      msgs.push('Chybné datum');
+      msgs.push(T('TASKEDITOR_BAD_DATE'));
     }
 
     var t = this.i_text.getValue();
@@ -491,7 +491,7 @@ G.TaskEditor = Class.create(X.Signals,
     else
     {
       this.i_text.addClassName('error');
-      msgs.push('Prázdný text úkolu');
+      msgs.push(T('TASKEDITOR_BAD_TEXT'));
     }
 
     this.b_save.disabled = msgs.size() > 0;
@@ -568,7 +568,7 @@ G.NewTaskView = Class.create(X.Signals,
     this.editor = new G.TaskEditor(this.e_edit);
     this.editor.connect('cancel', this.onNewTaskCancel.bind(this));
     this.editor.connect('save', this.onNewTaskSave.bind(this));
-    this.editor.setButtonLabels('Přidat', 'Zavřít');
+    this.editor.setButtonLabels(T('TASKEDITOR_ADD'), T('TASKEDITOR_CLOSE'));
 
     this.element.hide();
   },
@@ -620,7 +620,7 @@ G.TaskView = Class.create(X.Signals,
       '<div class="edit"></div>'+
       '<div class="detail content"></div>'+
       '<div class="controls">'+
-      '<a href="" class="btn_edit">upravit</a> | <a href="" class="btn_delete">smazat</a> | <a class="btn_state" href="">hotovo</a>'+
+      '<a href="" class="btn_edit">'+TE('TASKVIEW_EDIT')+'</a> | <a href="" class="btn_delete">'+TE('TASKVIEW_DELETE')+'</a> | <a class="btn_state" href="">'+TE('TASKVIEW_DONE')+'</a>'+
       '</div>'
     );
     this.e_titlebox = this.element.select('div.title').first();
@@ -743,7 +743,7 @@ G.TaskView = Class.create(X.Signals,
     this.e_title.update(task.title.escapeHTML());
     this.e_category.update(task.category.name.escapeHTML());
     this.e_detail.update(task.html ? task.html : task.detail.escapeHTML());
-    this.b_state.update(!task.done ? 'hotovo' : 'není hotovo');
+    this.b_state.update(!task.done ? TE('TASKVIEW_DONE') : TE('TASKVIEW_NOT_DONE'));
     if (task.done)
       this.element.addClassName('done');
     else
@@ -767,7 +767,7 @@ G.TaskListView = Class.create(X.Signals,
     this.e_new_tasks.insert(this.e_new_tasks_list = new Element('ul', {'class': 'tasks'}));
     this.element.insert(this.e_list = new Element('div', {'class': 'list'}));
     this.e_controls.insert(this.i_search = new Element('input', {type: 'text', value: ''}));
-    this.e_controls.insert(this.b_newtask = new Element('input', {type: 'button', value: 'Nový úkol...'}));
+    this.e_controls.insert(this.b_newtask = new Element('input', {type: 'button', value: T('TASKLIST_VIEW_NEW_TASK')}));
 
     this.setTitle(title);
     this.b_newtask.observe('click', this.newTaskClick.bindAsEventListener(this));
@@ -913,7 +913,73 @@ G.TaskListView = Class.create(X.Signals,
 });
 
 /* }}} */
-/* {{{ Views: G.App - toplevel controller for the whole application */
+/* {{{ G.Locale - localization */
+
+G.Locale = Class.create(X.Signals,
+{
+  initialize: function(lang)
+  {
+    this.setup(lang);
+
+    T = (function(key) { return this.translate(key); }).bind(this);
+    TE = (function(key) { return this.translate(key).escapeHTML(); }).bind(this);
+  },
+
+  translate: function(key)
+  {
+    return this.strings[key] || '['+key+']';
+  },
+
+  setup: function(lang)
+  {
+    this.strings = {
+      TASKLIST_VIEW_HEADER: "Task list",
+      TASKLIST_VIEW_NEW_TASK: "New task...",
+      TASKEDITOR_CATEGORY: "Category",
+      TASKEDITOR_NEW_CATEGORY: "new...",
+      TASKEDITOR_DATE: "Date",
+      TASKEDITOR_SAVE: "Save",
+      TASKEDITOR_CANCEL: "Cancel",
+      TASKEDITOR_NEW_CATEGORY_PROMPT: "Please enter the name for a new category:",
+      TASKEDITOR_NEW_CATEGORY_FAILED: "Category was NOT created",
+      TASKEDITOR_BAD_DATE: "Wrong date",
+      TASKEDITOR_BAD_TEXT: "Task text can't be empty",
+      TASKEDITOR_ADD: "Add",
+      TASKEDITOR_CLOSE: "Close",
+      TASKVIEW_EDIT: "edit",
+      TASKVIEW_DELETE: "delete",
+      TASKVIEW_DONE: "done",
+      TASKVIEW_NOT_DONE: "not done"
+    };
+
+    if (lang == 'cs')
+    {
+      Date.CultureInfo = Date.csCultureInfo;
+      this.strings = {
+        TASKLIST_VIEW_HEADER: "Seznam úkolů",
+        TASKLIST_VIEW_NEW_TASK: "Nový úkol...",
+        TASKEDITOR_CATEGORY: "Kategorie",
+        TASKEDITOR_NEW_CATEGORY: "nová...",
+        TASKEDITOR_DATE: "Datum",
+        TASKEDITOR_SAVE: "Uložit",
+        TASKEDITOR_CANCEL: "Zrušit",
+        TASKEDITOR_NEW_CATEGORY_PROMPT: "Zadejte prosím název nové kategorie:",
+        TASKEDITOR_NEW_CATEGORY_FAILED: "Kategorie NEBYLA vytvořena",
+        TASKEDITOR_BAD_DATE: "Chybné datum",
+        TASKEDITOR_BAD_TEXT: "Zadejte text úkolu",
+        TASKEDITOR_ADD: "Přidat",
+        TASKEDITOR_CLOSE: "Zavřít",
+        TASKVIEW_EDIT: "upravit",
+        TASKVIEW_DELETE: "smazat",
+        TASKVIEW_DONE: "hotovo",
+        TASKVIEW_NOT_DONE: "není hotovo"
+      };
+    }
+  }
+});
+
+/* }}} */
+/* {{{ Controller: G.App - toplevel controller for the whole application */
 
 G.App = Class.create(X.Signals,
 {
@@ -921,6 +987,7 @@ G.App = Class.create(X.Signals,
   {
     this.element = $(el);
 
+    this.locale = new G.Locale(location.href.toQueryParams().lang || 'cs');
     this.notify = new G.Notify('notify');
     this.rpc = new X.RPC('rpc.php');
     this.rpc.connect('error', function(e) { this.notify.notify(e.message); }, this);
@@ -931,7 +998,7 @@ G.App = Class.create(X.Signals,
     this.filter = new G.TaskListFilter(this.tasks);
 
     // create tasks view
-    this.view = new G.TaskListView(this.filter, 'Všechny úkoly');
+    this.view = new G.TaskListView(this.filter, T('TASKLIST_VIEW_HEADER'));
     this.element.insert(this.view.element);
 
     this.tasks.start();
