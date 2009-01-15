@@ -22,6 +22,16 @@ function texy_process($texy_text)
 
 class gtd_rpc_server extends json_rpc_server
 {
+  public function _pre_call($method, $params)
+  {
+    $GLOBALS['db'] = new database("pgsql:dbname=mygtd", "postgres", "heslo");
+
+    if ($GLOBALS['db']->col_iquery('SELECT COUNT(*) FROM pg_tables WHERE schemaname = ? AND tablename = ?', "public", "tasks") == 0)
+      $GLOBALS['db']->iquery("CREATE TABLE tasks (id SERIAL, title TEXT, detail TEXT, category TEXT, exdate DATE, done BOOLEAN)");
+
+    return null;
+  }
+
   public function getTasks()
   {
     return $GLOBALS['db']->iquery("SELECT * FROM tasks ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
@@ -45,13 +55,8 @@ class gtd_rpc_server extends json_rpc_server
   }
 }
 
-// open DB
-$db = new database("pgsql:dbname=mygtd", "postgres", "heslo");
-if ($db->col_iquery('SELECT COUNT(*) FROM pg_tables WHERE schemaname = ? AND tablename = ?', "public", "tasks") == 0)
-  $db->iquery("CREATE TABLE tasks (id SERIAL, title TEXT, detail TEXT, category TEXT, exdate DATE, done BOOLEAN)");
-
-// run rpc server
-$server = new gtd_rpc_server;
+// run the server
+$server = new gtd_rpc_server();
 $server->run();
 
 ?>
