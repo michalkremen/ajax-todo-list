@@ -167,35 +167,6 @@ G.TaskList = Class.create(X.Signals,
     return this.tasks;
   },
 
-  getTasksByDay: function(from_date, to_date)
-  {
-    var groups = $A();
-    var last_group;
-
-    this.tasks.select(function(t) {  
-      if (from_date && t.exdate.isBefore(from_date))
-        return false;
-      if (to_date && t.exdate.isAfter(to_date))
-        return false;
-      return true;
-    }).sortBy(function(t) { 
-      return t.exdate.toString('yyyy-MM-dd'); 
-    }).each(function(t) {
-      if (!last_group || !last_group.date.equals(t.exdate))
-      {
-        last_group = { 
-          tasks: $A(),
-          date: t.exdate,
-          name: t.exdate.toString('d. MMMM yyyy')
-        };
-        groups.push(last_group);
-      }
-      last_group.tasks.push(t);
-    });
-
-    return groups;
-  },
-
   /* {{{ Server communication routines */
 
   load: function()
@@ -272,6 +243,97 @@ G.TaskList = Class.create(X.Signals,
   }
 
   /* }}} */
+});
+
+/* }}} */
+/* {{{ Data filter: G.TaskListFilter */
+
+G.TaskListFilter = Class.create(X.Signals,
+{
+  initialize: function(tasklist)
+  {
+    this.tasklist = tasklist;
+    this.tasklist.connect('changed', this.filterChanges, this);
+  },
+
+  filterChanges: function()
+  {
+    var new_tasks = this.getTasksByDay().toJSON();
+    if (this.current_tasks != new_tasks)
+      this.emit('changed');
+    this.current_tasks = new_tasks;
+  },
+
+  setupSearch: function(text)
+  {
+    this.search = text;
+    this.filterChanges();
+  },
+
+  setupDateLimit: function(from, to)
+  {
+    this.from_date = Date.parse(from.toString());
+    this.to_date = Date.parse(to.toString());
+    this.filterChanges();
+  },
+
+  setupCategoryLimit: function(category)
+  {
+    this.category = category;
+    if (typeof this.category != 'object')
+      this.category = this.tasklist.categories.find(function(c) { return c.id == category; });
+    this.filterChanges();
+  },
+
+  resetFilters: function()
+  {
+    this.search = null;
+    this.from_date = null;
+    this.to_date = null;
+    this.category = null;
+    this.filterChanges();
+  },
+
+  getTasks: function()
+  {
+    return this.tasklist.getTasks().select((function(task) {
+      // date filter
+      if (this.from_date && task.exdate.isBefore(this.from_date))
+        return false;
+      if (this.to_date && task.exdate.isAfter(this.to_date))
+        return false;
+      // category filter
+      if (this.category && task.category.id != this.category.id)
+        return false;
+      // search filter
+      if (this.search && ![task.title, task.detail].join(' ').include(this.search))
+        return false;
+      return true;
+    }).bind(this));
+  },
+
+  getTasksByDay: function()
+  {
+    var groups = $A(), last_group;
+
+    this.getTasks().sortBy(function(task) { 
+      return task.exdate.toString('yyyy-MM-dd'); 
+    }).each(function(task) {
+      if (!last_group || !last_group.date.equals(task.exdate))
+      {
+        last_group = { 
+          tasks: $A(),
+          date: task.exdate,
+          name: task.exdate.toString('d. MMMM yyyy')
+        };
+        groups.push(last_group);
+      }
+      last_group.tasks.push(task);
+    });
+
+    return groups;
+  },
+
 });
 
 /* }}} */
@@ -696,7 +758,7 @@ G.TaskView = Class.create(X.Signals,
 
 G.TaskListView = Class.create(X.Signals,
 {
-  initialize: function(title)
+  initialize: function(filter, title)
   {
     this.element = new Element('div', {'class': 'tasklist'});
     this.element.insert(this.e_title = new Element('h2'));
@@ -704,11 +766,27 @@ G.TaskListView = Class.create(X.Signals,
     this.element.insert(this.e_new_tasks = new Element('div', {'class': 'new_tasks'}));
     this.e_new_tasks.insert(this.e_new_tasks_list = new Element('ul', {'class': 'tasks'}));
     this.element.insert(this.e_list = new Element('div', {'class': 'list'}));
-    //this.e_controls.insert(this.i_search = new Element('input', {type: 'text', value: ''}));
+    this.e_controls.insert(this.i_search = new Element('input', {type: 'text', value: ''}));
     this.e_controls.insert(this.b_newtask = new Element('input', {type: 'button', value: 'Nový úkol...'}));
 
     this.setTitle(title);
-    this.b_newtask.observe('click', this.newTaskClick.bindAsEventListener(this))
+    this.b_newtask.observe('click', this.newTaskClick.bindAsEventListener(this));
+
+    this.filter = filter;
+    this.filter.connect('changed', function() {
+      this.renderStructure(this.filter.getTasksByDay());
+    }, this);
+
+    this.i_search.observe('keyup', this.onSearchInputChanged.bindAsEventListener(this));
+  },
+
+  onSearchInputChanged: function(event)
+  {
+    var search_term = this.i_search.getValue().strip();
+    if (search_term.blank())
+      this.filter.resetFilters();
+    else
+      this.filter.setupSearch(search_term);
   },
 
   setTitle: function(text)
@@ -761,11 +839,6 @@ G.TaskListView = Class.create(X.Signals,
       groups.push(group);
     });
     return groups;
-  },
-
-  renderDays: function()
-  {
-    this.renderStructure(G.app.tasks.getTasksByDay());
   },
 
   /** This function is used tom manage list groups and their items.
@@ -851,18 +924,14 @@ G.App = Class.create(X.Signals,
     this.notify = new G.Notify('notify');
     this.rpc = new X.RPC('rpc.php');
     this.rpc.connect('error', function(e) { this.notify.notify(e.message); }, this);
-
-    // global task list, contains all tasks
     this.tasks = new G.TaskList(this.rpc);
     this.tasks.connect('rpc', function(action) {
       this.notify.notify(action);
     }, this);
-    this.tasks.connect('changed', function() { 
-      this.view.renderDays(); 
-    }, this);
+    this.filter = new G.TaskListFilter(this.tasks);
 
     // create tasks view
-    this.view = new G.TaskListView('Všechny úkoly');
+    this.view = new G.TaskListView(this.filter, 'Všechny úkoly');
     this.element.insert(this.view.element);
 
     this.tasks.start();
