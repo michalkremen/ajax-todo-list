@@ -30,7 +30,6 @@ body {
   border: 1px solid #aaa;
   background: #eee;
   padding: 6px;
-  width: 600px;
   margin-top: 20px;
 }
 
@@ -114,7 +113,7 @@ body {
 }
 
 .tasklist ul.tasks li.task .edit textarea {
-  width: 570px;
+  width: 550px;
   height: 100px;
 }
 
@@ -147,6 +146,17 @@ body {
   font-size: 12px;
   font-weight: bold;
   -moz-border-radius: 4px;
+}
+
+.header {
+  width: 600px;
+  margin: auto;
+}
+
+.footer {
+  width: 600px;
+  margin: auto;
+  margin-top: 50px;
 }
 
 /* globals */
