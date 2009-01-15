@@ -26,7 +26,7 @@ X.Signals =
   }
 };
 
-X.RPC = Class.create(
+X.RPC = Class.create(X.Signals,
 {
   initialize: function(url)
   {
@@ -47,6 +47,9 @@ X.RPC = Class.create(
   callFinish: function(cb, request)
   {
     var response = request.responseJSON;
-    cb(response.result, response.error);
+    if (response.error)
+      this.emit('error', response.error);
+    else
+      cb(response.result, response.error);
   }
 });

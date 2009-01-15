@@ -65,6 +65,11 @@ class database extends PDO
     return $row[0];
   }
 
+  public function table_exists($name)
+  {
+    return $GLOBALS['db']->col_iquery('SELECT COUNT(*) FROM pg_tables WHERE schemaname = ? AND tablename = ?', "public", $name) != 0;
+  }
+
   /** Make intelligent SQL query.
    *
    * @param base_sql [string] SQL query string that may contain ? substitution parameter

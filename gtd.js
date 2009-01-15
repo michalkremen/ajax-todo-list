@@ -64,7 +64,7 @@ G.Task = Class.create(X.Signals,
     data.title = this.title;
     data.detail = this.detail;
     data.exdate = this.exdate.toString('yyyy-MM-dd');
-    data.category = this.category.title;
+    data.category_id = this.category.id;
     data.done = this.status.name == 'done';
     return data;
   }
@@ -255,11 +255,7 @@ G.TaskEditor = Class.create(X.Signals,
 
     // fill categories select
     this.b_newcat.hide(); //TODO: new category creation
-    G.app.task_categories.each(function(c) {
-      var option = new Element('option', {value: c.title});
-      option.update(c.title.escapeHTML());
-      this.i_category.insert(option);
-    }, this);
+    this.loadCategoryOptions();
 
     // date parser/validator/selector
     this.i_date.setValue('today');
@@ -270,6 +266,18 @@ G.TaskEditor = Class.create(X.Signals,
     this.i_text.observe('keyup', this.onTextChange.bindAsEventListener(this));
 
     this.checkInput();
+  },
+
+  loadCategoryOptions: function()
+  {
+    var selected = this.i_category.getValue();
+    this.i_category.update();
+    G.app.task_categories.each(function(c) {
+      var option = new Element('option', {value: c.id});
+      option.update(c.title.escapeHTML());
+      this.i_category.insert(option);
+    }, this);
+    this.i_category.setValue(selected);
   },
 
   setButtonLabels: function(save, cancel)
@@ -360,20 +368,18 @@ G.TaskEditor = Class.create(X.Signals,
   getData: function()
   {
     var data = {};
-    G.app.task_categories.each(function(c) {
-      if (c.title == this.i_category.getValue())
-        data.category = c;
-    }, this);
+    var category_id = this.i_category.getValue();
     var lines = $A(this.i_text.getValue().strip().split(/\n/));
     data.title = lines.shift();
     data.detail = lines.join("\n").strip();
     data.exdate = this.i_date.getValue();
+    data.category = G.app.task_categories.find(function(c) { return c.id == category_id });
     return data;
   },
 
   setFromTask: function(task)
   {
-    this.i_category.setValue(task.category.title);
+    this.i_category.setValue(task.category.id);
     this.i_date.setValue(task.exdate.toString('d.M.yyyy'));
     this.i_text.setValue(task.title + "\n\n" + task.detail);
     this.checkInput();
@@ -765,15 +771,12 @@ G.App = Class.create(
     // initialize notificator widget
     this.notify = new G.Notify('notify');
     this.rpc = new X.RPC('rpc.php');
+    this.rpc.connect('error', (function(e) { this.notify.notify(e.message); }).bind(this));
 
     // load test data
     this.task_statuses = {};
     this.task_statuses.done = new G.TaskState('done', 'Hotovo');
     this.task_statuses.active = new G.TaskState('active', 'Aktivní');
-
-    this.task_categories = $A();
-    this.task_categories.push(this.c_work = new G.TaskCategory('Práce'));
-    this.task_categories.push(this.c_pers = new G.TaskCategory('Osobní'));
 
     this.tasks = new G.TaskList();  // global task list, contains all tasks
     this.tasks.connect('changed', (function() { 
@@ -794,8 +797,14 @@ G.App = Class.create(
   {
     this.tasks.clear();
     this.rpc.call('getTasks', (function(retval) {
-      retval.each(function(t) {
-        var task = new G.Task(t.title, t.detail, this.c_work, t.exdate, t.done ? this.task_statuses.done : this.task_statuses.active);
+      this.task_categories = $A();
+      retval.categories.each(function(c) {
+        var category = new G.TaskCategory(c.name);
+        category.id = c.id;
+        this.task_categories.push(category);
+      }, this);
+      retval.tasks.each(function(t) {
+        var task = new G.Task(t.title, t.detail, this.task_categories.find(function(c) { return c.id == t.category_id }), t.exdate, t.done ? this.task_statuses.done : this.task_statuses.active);
         task.id = t.id;
         this.tasks.addTask(task);
         task.connect('destroyed', this.deleteTask.bind(this, task));
@@ -804,6 +813,14 @@ G.App = Class.create(
       this.notify.notify('Úkoly byly načteny');
       this.view.renderDays();
     }).bind(this));
+  },
+
+  createCategory: function(category)
+  {
+    this.rpc.call('createCategory', (function(retval) {
+      category.id = retval;
+      this.notify.notify('Kategorie byla vytvořena');
+    }).bind(this), category.name);
   },
 
   createTask: function(task)

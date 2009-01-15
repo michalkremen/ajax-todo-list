@@ -26,27 +26,41 @@ class gtd_rpc_server extends json_rpc_server
   {
     $GLOBALS['db'] = new database("pgsql:dbname=mygtd", "postgres", "heslo");
 
-    if ($GLOBALS['db']->col_iquery('SELECT COUNT(*) FROM pg_tables WHERE schemaname = ? AND tablename = ?', "public", "tasks") == 0)
-      $GLOBALS['db']->iquery("CREATE TABLE tasks (id SERIAL, title TEXT, detail TEXT, category TEXT, exdate DATE, done BOOLEAN)");
+    if (!$GLOBALS['db']->table_exists("tasks"))
+    {
+      $GLOBALS['db']->query("CREATE TABLE categories (id SERIAL, name TEXT)");
+      $GLOBALS['db']->query("CREATE TABLE tasks (id SERIAL, title TEXT, detail TEXT, category_id INTEGER, exdate DATE, done BOOLEAN)");
+      $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Práce");
+      $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Osobní");
+      $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Ostatní");
+    }
 
     return null;
   }
 
   public function getTasks()
   {
-    return $GLOBALS['db']->iquery("SELECT * FROM tasks ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+    $obj = new stdClass;
+    $obj->tasks = $GLOBALS['db']->iquery("SELECT * FROM tasks ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+    $obj->categories = $GLOBALS['db']->iquery("SELECT * FROM categories ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
+    return $obj;
   }
 
   public function createTask($task)
   {
-    return $GLOBALS['db']->col_iquery("INSERT INTO tasks(title, detail, exdate, category, done) VALUES (?, ?, ?, ?, ?) RETURNING id", 
-      $task->title, $task->detail, $task->exdate, $task->category, $task->done ? 'true' : 'false');
+    return $GLOBALS['db']->col_iquery("INSERT INTO tasks(title, detail, exdate, category_id, done) VALUES (?, ?, ?, ?, ?) RETURNING id", 
+      $task->title, $task->detail, $task->exdate, (int)$task->category_id, $task->done ? 'true' : 'false');
+  }
+
+  public function createCategory($name)
+  {
+    return $GLOBALS['db']->col_iquery("INSERT INTO categories(name) VALUES (?) RETURNING id", $name);
   }
 
   public function updateTask($task)
   {
-    $GLOBALS['db']->iquery("UPDATE tasks SET title = ?, detail = ?, exdate = ?, category = ?, done = ? WHERE id = ?", 
-      $task->title, $task->detail, $task->exdate, $task->category, $task->done ? 'true' : 'false', (int)$task->id);
+    $GLOBALS['db']->iquery("UPDATE tasks SET title = ?, detail = ?, exdate = ?, category_id = ?, done = ? WHERE id = ?", 
+      $task->title, $task->detail, $task->exdate, (int)$task->category_id, $task->done ? 'true' : 'false', (int)$task->id);
   }
 
   public function deleteTask($task_id)
