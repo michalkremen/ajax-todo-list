@@ -34,7 +34,7 @@ G.Task = Class.create(X.Signals,
         else if (param == 'category')
         {
           var category = data[param];
-          if (Object.isNumber(category))
+          if (typeof category != 'object')
             category = G.app.tasks.categories.find(function(c) { return c.id == category; });
           //XXX: category may not exist
           if (Object.isUndefined(this.category) || this.category.id != category.id)
@@ -123,6 +123,14 @@ G.TaskList = Class.create(X.Signals,
     this.tasks = $A();
     this.categories = $A();
     this.rpc = rpc;
+  },
+
+  start: function()
+  {
+    this.load();
+    this.executer = new PeriodicalExecuter((function() {
+      this.load();
+    }).bind(this), 8);
   },
 
   /* {{{ Internal methods */
@@ -851,16 +859,13 @@ G.App = Class.create(X.Signals,
     }, this);
     this.tasks.connect('changed', function() { 
       this.view.renderDays(); 
-      //this.view2.renderDays(); 
     }, this);
 
     // create tasks view
     this.view = new G.TaskListView('Všechny úkoly');
     this.element.insert(this.view.element);
-    //this.view2 = new G.TaskListView('Všechny úkoly 2');
-    //this.element.insert(this.view2.element);
 
-    this.tasks.load();
+    this.tasks.start();
   },
 });
 
