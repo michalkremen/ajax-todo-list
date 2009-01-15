@@ -130,19 +130,19 @@ G.TaskList = Class.create(X.Signals,
     this.list.push(task);
     task.connect('changed', this.taskChange.bind(this));
     task.connect('destroyed', this.taskDestroy.bind(this, task));
-    this.emit('task-added');
+    this.emit('changed', 'add');
   },
 
   delTask: function(task)
   {
     this.list = this.list.without(task);
-    this.emit('task-removed');
+    this.emit('changed', 'remove');
   },
 
   taskChange: function(field)
   {
     if (field == 'exdate')
-      this.emit('date-changed');
+      this.emit('changed', 'date');
   },
 
   taskDestroy: function(task)
@@ -270,6 +270,12 @@ G.TaskEditor = Class.create(X.Signals,
     this.i_text.observe('keyup', this.onTextChange.bindAsEventListener(this));
 
     this.checkInput();
+  },
+
+  setButtonLabels: function(save, cancel)
+  {
+    this.b_save.setValue(save);
+    this.b_cancel.setValue(cancel);
   },
 
   /* {{{ Date selector */
@@ -406,6 +412,7 @@ G.NewTaskView = Class.create(X.Signals,
     this.editor = new G.TaskEditor(this.e_edit);
     this.editor.connect('cancel', this.onNewTaskCancel.bind(this));
     this.editor.connect('save', this.onNewTaskSave.bind(this));
+    this.editor.setButtonLabels('Přidat', 'Zavřít');
 
     this.element.hide();
   },
@@ -769,12 +776,16 @@ G.App = Class.create(
     this.task_categories.push(this.c_pers = new G.TaskCategory('Osobní'));
 
     this.tasks = new G.TaskList();  // global task list, contains all tasks
-    this.tasks.connect('date-changed', (function() { this.view.renderDays(); }).bind(this));
-    this.tasks.connect('task-removed', (function() { this.view.renderDays(); }).bind(this));
+    this.tasks.connect('changed', (function() { 
+      this.view.renderDays(); 
+      this.view2.renderDays(); 
+    }).bind(this));
 
     // create tasks view
     this.view = new G.TaskListView('Všechny úkoly');
+    this.view2 = new G.TaskListView('Všechny úkoly 2');
     this.element.insert(this.view.element);
+    this.element.insert(this.view2.element);
 
     this.loadTasks();
   },

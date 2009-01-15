@@ -31,6 +31,7 @@ body {
   background: #eee;
   padding: 6px;
   width: 600px;
+  margin-top: 20px;
 }
 
 .tasklist h2 {
@@ -52,6 +53,11 @@ body {
   background: white;
   padding: 1px 6px;
   -moz-border-radius: 4px;
+}
+
+.tasklist .new_tasks ul.tasks {
+  margin-top: 6px;
+  background: inherit;
 }
 
 .tasklist ul.tasks li.task {
@@ -120,6 +126,10 @@ body {
   padding: 5px;
   margin-bottom: 5px;
   -moz-border-radius: 4px;
+}
+
+.tasklist ul.tasks li.task .edit input,
+.tasklist ul.tasks li.task .edit textarea {
 }
 
 .tasklist ul.tasks li.task .edit input.error,
