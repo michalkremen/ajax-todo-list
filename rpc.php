@@ -28,8 +28,8 @@ class gtd_rpc_server extends json_rpc_server
 
     if (!$GLOBALS['db']->table_exists("tasks"))
     {
-      $GLOBALS['db']->query("CREATE TABLE categories (id SERIAL, name TEXT)");
-      $GLOBALS['db']->query("CREATE TABLE tasks (id SERIAL, title TEXT, detail TEXT, category_id INTEGER, exdate DATE, done BOOLEAN)");
+      $GLOBALS['db']->query("CREATE TABLE categories (id SERIAL, name TEXT NOT NULL)");
+      $GLOBALS['db']->query("CREATE TABLE tasks (id SERIAL, title TEXT NOT NULL, detail TEXT, category_id INTEGER NOT NULL, exdate DATE NOT NULL, done BOOLEAN NOT NULL)");
       $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Práce");
       $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Osobní");
       $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Ostatní");

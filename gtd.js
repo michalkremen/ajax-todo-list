@@ -214,7 +214,7 @@ G.Notify = Class.create(
       clearTimeout(this.timer);
       this.timer = 0;
     }
-    this.timer = this.hide.bind(this).delay(3);
+    this.timer = this.hide.bind(this).delay(4);
   },
 
   hide: function()
@@ -254,8 +254,9 @@ G.TaskEditor = Class.create(X.Signals,
     this.b_cancel.observe('click', this.onCancelClick.bindAsEventListener(this));
 
     // fill categories select
-    this.b_newcat.hide(); //TODO: new category creation
+    this.b_newcat.observe('click', this.onNewCategoryClick.bindAsEventListener(this));
     this.loadCategoryOptions();
+    G.app.connect('categories-changed', this.loadCategoryOptions.bind(this));
 
     // date parser/validator/selector
     this.i_date.setValue('today');
@@ -272,6 +273,7 @@ G.TaskEditor = Class.create(X.Signals,
   {
     var selected = this.i_category.getValue();
     this.i_category.update();
+    log(G.app.task_categories);
     G.app.task_categories.each(function(c) {
       var option = new Element('option', {value: c.id});
       option.update(c.title.escapeHTML());
@@ -286,6 +288,22 @@ G.TaskEditor = Class.create(X.Signals,
     this.b_cancel.setValue(cancel);
   },
 
+  /* {{{ New category */
+
+  onNewCategoryClick: function(event)
+  {
+    event.stop();
+    var name = prompt('Zadejte prosím název nové kategorie:');
+    if (name && name.strip().length > 0)
+    {
+      var cat = new G.TaskCategory(name);
+      G.app.createCategory(cat);
+    }
+    else
+      G.app.notify.notify('Kategorie NEBYLA vytvořena');
+  },
+
+  /* }}} */
   /* {{{ Date selector */
 
   onDateClick: function(event)
@@ -757,7 +775,7 @@ G.TaskListView = Class.create(X.Signals,
 /* }}} */
 /* {{{ Views: G.App - toplevel controller for the whole application */
 
-G.App = Class.create(
+G.App = Class.create(X.Signals,
 {
   initialize: function(el)
   {
@@ -820,7 +838,9 @@ G.App = Class.create(
     this.rpc.call('createCategory', (function(retval) {
       category.id = retval;
       this.notify.notify('Kategorie byla vytvořena');
-    }).bind(this), category.name);
+      this.task_categories.push(category);
+      this.emit('categories-changed');
+    }).bind(this), category.title);
   },
 
   createTask: function(task)
