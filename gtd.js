@@ -949,7 +949,17 @@ G.Locale = Class.create(X.Signals,
       TASKVIEW_EDIT: "edit",
       TASKVIEW_DELETE: "delete",
       TASKVIEW_DONE: "done",
-      TASKVIEW_NOT_DONE: "not done"
+      TASKVIEW_NOT_DONE: "not done",
+      RPC_LOAD_PRE: "reloading tasks...",
+      RPC_LOAD_POST: "tasks loaded",
+      RPC_CREATE_TASK_PRE: "creating task...",
+      RPC_CREATE_TASK_POST: "task created",
+      RPC_UPDATE_TASK_PRE: "updating task...",
+      RPC_UPDATE_TASK_POST: "task updated",
+      RPC_DELETE_TASK_PRE: "deleting task...",
+      RPC_DELETE_TASK_POST: "task deleted",
+      RPC_CREATE_CATEGORY_PRE: "creating category...",
+      RPC_CREATE_CATEGORY_POST: "category created"
     };
 
     if (lang == 'cs')
@@ -972,7 +982,17 @@ G.Locale = Class.create(X.Signals,
         TASKVIEW_EDIT: "upravit",
         TASKVIEW_DELETE: "smazat",
         TASKVIEW_DONE: "hotovo",
-        TASKVIEW_NOT_DONE: "není hotovo"
+        TASKVIEW_NOT_DONE: "není hotovo",
+        RPC_LOAD_PRE: "načítám úkoly...",
+        RPC_LOAD_POST: "úkoly načteny",
+        RPC_CREATE_TASK_PRE: "vytvářím úkol...",
+        RPC_CREATE_TASK_POST: "úkol vytvořen",
+        RPC_UPDATE_TASK_PRE: "upravuji úkol...",
+        RPC_UPDATE_TASK_POST: "úkol upraven",
+        RPC_DELETE_TASK_PRE: "mažu úkol...",
+        RPC_DELETE_TASK_POST: "úkol smazán",
+        RPC_CREATE_CATEGORY_PRE: "vytvářím kategorii...",
+        RPC_CREATE_CATEGORY_POST: "kategorie vytvořena"
       };
     }
   }
@@ -993,7 +1013,7 @@ G.App = Class.create(X.Signals,
     this.rpc.connect('error', function(e) { this.notify.notify(e.message); }, this);
     this.tasks = new G.TaskList(this.rpc);
     this.tasks.connect('rpc', function(action) {
-      this.notify.notify(action);
+      this.notify.notify(T('RPC_'+action.underscore().toUpperCase()));
     }, this);
     this.filter = new G.TaskListFilter(this.tasks);
 
