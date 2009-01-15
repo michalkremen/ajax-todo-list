@@ -233,6 +233,7 @@ G.TaskEditor = Class.create(X.Signals,
   {
     this.element = $(el);
     this.element.update(
+      '<div class="error"></div>'+
       '<label>Kategorie:</label> <select name="category"></select> <a class="btn_newcat" href="#">nová...</a><br/>'+
       '<label>Datum:</label> <input type="text" name="date" /> <a class="btn_date" href=""></a><br/>'+
       '<textarea name="text"></textarea><br/>'+
@@ -246,37 +247,32 @@ G.TaskEditor = Class.create(X.Signals,
     this.b_save = this.element.select('.btn_save').first();
     this.b_cancel = this.element.select('.btn_cancel').first();
     this.b_date = this.element.select('.btn_date').first();
+    this.e_error = this.element.select('.error').first();
 
+    // save/cancel buttons
     this.b_save.observe('click', this.onSaveClick.bindAsEventListener(this));
     this.b_cancel.observe('click', this.onCancelClick.bindAsEventListener(this));
-    this.b_newcat.hide();
 
+    // fill categories select
+    this.b_newcat.hide(); //TODO: new category creation
     G.app.task_categories.each(function(c) {
       var option = new Element('option', {value: c.title});
       option.update(c.title.escapeHTML());
       this.i_category.insert(option);
     }, this);
 
+    // date parser/validator/selector
     this.i_date.setValue('today');
-    this.onDateChange();
-    this.i_date.observe('keyup', this.onDateChange.bindAsEventListener(this));
     this.b_date.observe('click', this.onDateClick.bindAsEventListener(this));
+
+    // realtime form validation
+    this.i_date.observe('keyup', this.onDateChange.bindAsEventListener(this));
+    this.i_text.observe('keyup', this.onTextChange.bindAsEventListener(this));
+
+    this.checkInput();
   },
 
-  onDateChange: function(event)
-  {
-    var d = Date.parse(this.i_date.getValue());
-    if (d)
-    {
-      this.b_date.update(d.toString('d. MMMM yyyy').escapeHTML());
-      this.i_date.removeClassName('error');
-    }
-    else
-    {
-      this.b_date.update('dnes');
-      this.i_date.addClassName('error');
-    }
-  },
+  /* {{{ Date selector */
 
   onDateClick: function(event)
   {
@@ -288,6 +284,72 @@ G.TaskEditor = Class.create(X.Signals,
       this.i_date.setValue(Date.today().toString('d.M.yyyy'));
     this.onDateChange();
   },
+
+  /* }}} */
+  /* {{{ Form input validation */
+
+  checkInput: function()
+  {
+    var msgs = $A();
+    var d = Date.parse(this.i_date.getValue());
+    if (d)
+    {
+      this.b_date.update(d.toString('d. MMMM yyyy').escapeHTML());
+      this.i_date.removeClassName('error');
+    }
+    else
+    {
+      this.b_date.update('dnes');
+      this.i_date.addClassName('error');
+      msgs.push('Chybné datum');
+    }
+
+    var t = this.i_text.getValue();
+    if (t.strip().length > 0)
+    {
+      this.i_text.removeClassName('error');
+    }
+    else
+    {
+      this.i_text.addClassName('error');
+      msgs.push('Prázdný text úkolu');
+    }
+
+    this.b_save.disabled = msgs.size() > 0;
+    this.e_error.update(msgs.join(', ').escapeHTML());
+    if (msgs.size() > 0)
+      this.e_error.show();
+    else
+      this.e_error.hide();
+  },
+
+  onDateChange: function(event)
+  {
+    this.checkInput();
+  },
+
+  onTextChange: function(event)
+  {
+    this.checkInput();
+  },
+
+  /* }}} */
+  /* {{{ Form buttons event handlers */
+
+  onSaveClick: function(event)
+  {
+    this.emit('save');
+    this.emit('done');
+  },
+
+  onCancelClick: function(event)
+  {
+    this.emit('cancel');
+    this.emit('done');
+  },
+
+  /* }}} */
+  /* {{{ Form data load/save */
 
   getData: function()
   {
@@ -303,24 +365,30 @@ G.TaskEditor = Class.create(X.Signals,
     return data;
   },
 
-  onSaveClick: function(event)
-  {
-    this.emit('save');
-    this.emit('done');
-  },
-
-  onCancelClick: function(event)
-  {
-    this.emit('cancel');
-    this.emit('done');
-  },
-
   setFromTask: function(task)
   {
     this.i_category.setValue(task.category.title);
     this.i_date.setValue(task.exdate.toString('d.M.yyyy'));
     this.i_text.setValue(task.title + "\n\n" + task.detail);
+    this.checkInput();
+  },
+
+  updateTask: function(task)
+  {
+    var data = this.getData();
+    task.setTitle(data.title);
+    task.setDetail(data.detail);
+    task.setCategory(data.category);
+    task.setExDate(data.exdate);
+  },
+
+  createTask: function()
+  {
+    var data = this.getData();
+    return new G.Task(data.title, data.detail, data.category, data.exdate, G.app.task_statuses.active);
   }
+
+  /* }}} */
 });
 
 /* }}} */
@@ -332,7 +400,6 @@ G.NewTaskView = Class.create(X.Signals,
   {
     this.element = new Element('li', {'class': 'task'});
     this.element.view = this;
-    this.e_error = new Element('div', {'class': 'error'});
     this.e_edit = new Element('div', {'class': 'edit'});
     this.element.insert(this.e_edit);
 
@@ -342,6 +409,8 @@ G.NewTaskView = Class.create(X.Signals,
 
     this.element.hide();
   },
+
+  /* {{{ Show/hide */
 
   show: function()
   {
@@ -361,6 +430,8 @@ G.NewTaskView = Class.create(X.Signals,
     this.element.remove();
   },
 
+  /* }}} */
+
   onNewTaskCancel: function()
   {
     this.emit('cancel');
@@ -368,19 +439,7 @@ G.NewTaskView = Class.create(X.Signals,
 
   onNewTaskSave: function()
   {
-    var data = this.editor.getData();
-    if (data.title == '')
-    {
-      this.e_error.update('Vyplňte text úkolu');
-      return;
-    }
-    if (!data.exdate)
-    {
-      this.e_error.update('Chybné datum');
-      return;
-    }
-    var task = new G.Task(data.title, data.detail, data.category, data.exdate, G.app.task_statuses.active);
-    this.emit('save', task);
+    this.emit('save', this.editor.createTask());
   }
 });
 
@@ -418,6 +477,8 @@ G.TaskView = Class.create(X.Signals,
     this.element.hide();
   },
 
+  /* {{{ Show/hide */
+
   show: function()
   {
     new Effect.BlindDown(this.element, { duration: 0.5 });
@@ -436,6 +497,9 @@ G.TaskView = Class.create(X.Signals,
     this.element.remove();
   },
 
+  /* }}} */
+  /* {{{ Task editor */
+
   onEditClick: function(event)
   {
     event.stop();
@@ -444,43 +508,48 @@ G.TaskView = Class.create(X.Signals,
     this.editor.setFromTask(this.task);
     this.editor.connect('done', this.onEditDone.bind(this));
     this.editor.connect('save', this.onEditSave.bind(this));
-    //this.e_detail.hide();
-    //this.e_controls.hide();
-    var options = {duration: 0.5};
-    new Effect.BlindUp(this.e_detail, options);
-    new Effect.BlindUp(this.e_controls, options);
-    new Effect.BlindUp(this.e_titlebox, options);
-    new Effect.BlindDown(this.e_edit, options);
+    this.showEditor();
+  },
+
+  showEditor: function()
+  {
+    var options = { sync: true };
+    new Effect.Parallel([
+      new Effect.BlindUp(this.e_detail, options),
+      new Effect.BlindUp(this.e_controls, options),
+      new Effect.BlindUp(this.e_titlebox, options),
+      new Effect.BlindDown(this.e_edit, options)
+    ], { duration: 0.5 });
+  },
+
+  hideEditor: function()
+  {
+    var options = { sync: true };
+    new Effect.Parallel([
+      new Effect.BlindDown(this.e_detail, options),
+      new Effect.BlindDown(this.e_controls, options),
+      new Effect.BlindDown(this.e_titlebox, options),
+      new Effect.BlindUp(this.e_edit, options)
+    ], { duration: 0.5 });
   },
 
   onEditSave: function()
   {
-    var data = this.editor.getData();
-    this.task.setTitle(data.title);
-    this.task.setDetail(data.detail);
-    this.task.setCategory(data.category);
-    this.task.setExDate(data.exdate);
+    this.editor.updateTask(this.task);
   },
 
   onEditDone: function()
   {
-    this.e_detail.show();
-    this.e_controls.show();
-    this.e_titlebox.show();
-    this.e_edit.hide();
-    /*
-    var options = {duration: 0.5};
-    new Effect.BlindDown(this.e_detail, options);
-    new Effect.BlindDown(this.e_controls, options);
-    new Effect.BlindDown(this.e_titlebox, options);
-    new Effect.BlindUp(this.e_edit, options);
-    */
+    this.hideEditor();
   },
+
+  /* }}} */
+  /* {{{ Task buttons */
 
   onDeleteClick: function(event)
   {
-    event.stop();
     this.task.destroy();
+    event.stop();
   },
 
   onStateClick: function(event)
@@ -489,23 +558,19 @@ G.TaskView = Class.create(X.Signals,
     event.stop();
   },
 
+  /* }}} */
+  /* {{{ Data model link */
+
   setTask: function(task)
   {
     this.task = task;
     this.task.connect('changed', this.onTaskChange.bind(this));
-    this.task.connect('destroyed', this.onTaskDestruct.bind(this));
     this.setFromTask(task);
   },
 
   onTaskChange: function()
   {
     this.setFromTask(this.task);
-  },
-
-  onTaskDestruct: function()
-  {
-    this.hide(true);
-    this.emit('destroyed');
   },
 
   setFromTask: function(task)
@@ -520,6 +585,8 @@ G.TaskView = Class.create(X.Signals,
     else
       this.element.addClassName('done');
   }
+
+  /* }}} */
 });
 
 /* }}} */
@@ -527,10 +594,8 @@ G.TaskView = Class.create(X.Signals,
 
 G.TaskListView = Class.create(X.Signals,
 {
-  initialize: function(app, title)
+  initialize: function(title)
   {
-    this.app = app;
-
     this.element = new Element('div', {'class': 'tasklist'});
     this.element.insert(this.e_title = new Element('h2'));
     this.element.insert(this.e_controls = new Element('div', {'class': 'controls'}));
@@ -576,8 +641,8 @@ G.TaskListView = Class.create(X.Signals,
   {
     //view.hide(true);
     //this.b_newtask.enable();
-    this.app.tasks.addTask(task);
-    this.app.createTask(task);
+    G.app.tasks.addTask(task);
+    G.app.createTask(task);
     this.renderDays();
   },
 
@@ -602,23 +667,24 @@ G.TaskListView = Class.create(X.Signals,
 
   renderDays: function()
   {
-    this.renderStructure(this.app.tasks.getTasksByDay());
+    this.renderStructure(G.app.tasks.getTasksByDay());
   },
 
+  /** This function is used tom manage list groups and their items.
+   */
   renderStructure: function(new_structure)
   {
     var old_structure = this.getStructure();
 
     // remove non-existing groups and tasks
-    /*
     old_structure.each(function(old_group) {
       var new_group = new_structure.find(function(g) { return g.name == old_group.name });
       if (new_group)
       {
         old_group.tasks.each(function(old_task) {
-          var new_task = new_group.tasks.find(function(t) { return t.task === old_task.task });
+          var new_task = new_group.tasks.find(function(t) { return t === old_task.task });
           if (!new_task)
-            new_task.hide(true);
+            old_task.hide(true);
         });
       }
       else
@@ -630,8 +696,8 @@ G.TaskListView = Class.create(X.Signals,
         });
       }
     });
-    */
 
+    // add new groups and tasks
     new_structure.each(function(new_group) {
       var old_group = old_structure.find(function(g) { return g.name == new_group.name });
       if (old_group)
@@ -707,7 +773,7 @@ G.App = Class.create(
     this.tasks.connect('task-removed', (function() { this.view.renderDays(); }).bind(this));
 
     // create tasks view
-    this.view = new G.TaskListView(this, 'Všechny úkoly');
+    this.view = new G.TaskListView('Všechny úkoly');
     this.element.insert(this.view.element);
 
     this.loadTasks();

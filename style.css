@@ -113,7 +113,17 @@ body {
   height: 100px;
 }
 
-.tasklist ul.tasks li.task .edit .error {
+.tasklist ul.tasks li.task .edit div.error {
+  color: red;
+  font-weight: bold;
+  background: #ffcccc;
+  padding: 5px;
+  margin-bottom: 5px;
+  -moz-border-radius: 4px;
+}
+
+.tasklist ul.tasks li.task .edit input.error,
+.tasklist ul.tasks li.task .edit textarea.error {
   background: #ffcccc;
 }
 
