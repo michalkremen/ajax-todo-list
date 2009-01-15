@@ -24,12 +24,12 @@ class gtd_rpc_server extends json_rpc_server
 {
   public function _pre_call($method, $params)
   {
-    $GLOBALS['db'] = new database("pgsql:dbname=mygtd", "postgres", "heslo");
+    $GLOBALS['db'] = new database("db/db.sqlite");
 
     if (!$GLOBALS['db']->table_exists("tasks"))
     {
-      $GLOBALS['db']->query("CREATE TABLE categories (id SERIAL, name TEXT NOT NULL)");
-      $GLOBALS['db']->query("CREATE TABLE tasks (id SERIAL, title TEXT NOT NULL, detail TEXT, category_id INTEGER NOT NULL, exdate DATE NOT NULL, done BOOLEAN NOT NULL)");
+      $GLOBALS['db']->query("CREATE TABLE categories (id INTEGER PRIMARY KEY, name TEXT NOT NULL)");
+      $GLOBALS['db']->query("CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT NOT NULL, detail TEXT, category_id INTEGER NOT NULL, exdate DATE NOT NULL, done BOOLEAN NOT NULL)");
       $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Práce");
       $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Osobní");
       $GLOBALS['db']->iquery("INSERT INTO categories (name) VALUES (?)", "Ostatní");
@@ -43,21 +43,26 @@ class gtd_rpc_server extends json_rpc_server
     $obj = new stdClass;
     $obj->tasks = $GLOBALS['db']->iquery("SELECT *, tasks.category_id AS category FROM tasks ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
     foreach ($obj->tasks as &$task)
+    {
       $task['html'] = texy_process($task['detail']);
+      $task['done'] = $task['done'] == 'true';
+    }
     $obj->categories = $GLOBALS['db']->iquery("SELECT * FROM categories ORDER BY id")->fetchAll(PDO::FETCH_ASSOC);
     return $obj;
   }
 
   public function createTask($task)
   {
-    $id = $GLOBALS['db']->col_iquery("INSERT INTO tasks(title, detail, exdate, category_id, done) VALUES (?, ?, ?, ?, ?) RETURNING id", 
+    $GLOBALS['db']->iquery("INSERT INTO tasks(title, detail, exdate, category_id, done) VALUES (?, ?, ?, ?, ?)", 
       $task->title, $task->detail, $task->exdate, (int)$task->category_id, $task->done ? 'true' : 'false');
+    $id = $GLOBALS['db']->lastInsertId();
     return array('id' => $id, 'html' => texy_process($task->detail));
   }
 
   public function createCategory($name)
   {
-    $id = $GLOBALS['db']->col_iquery("INSERT INTO categories(name) VALUES (?) RETURNING id", $name);
+    $GLOBALS['db']->iquery("INSERT INTO categories(name) VALUES (?)", $name);
+    $id = $GLOBALS['db']->lastInsertId();
     return array('id' => $id);
   }
 
