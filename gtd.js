@@ -346,7 +346,7 @@ G.TaskListFilter = Class.create(X.Signals,
     });
 
     return groups;
-  },
+  }
 
 });
 
@@ -1076,7 +1076,7 @@ G.App = Class.create(X.Signals,
     this.element.insert(this.view.element);
 
     this.tasks.start();
-  },
+  }
 });
 
 /* }}} */
