@@ -151,8 +151,7 @@ G.TaskList = Class.create(X.Signals,
 
   taskChanged: function(fields)
   {
-    if (fields.include('exdate'))
-      this.emit('changed', 'date');
+    this.emit('changed', 'task');
   },
 
   taskDestroyed: function(task)
@@ -254,6 +253,7 @@ G.TaskListFilter = Class.create(X.Signals,
   {
     this.tasklist = tasklist;
     this.tasklist.connect('changed', this.filterChanges, this);
+    this.resetFilters();
   },
 
   filterChanges: function()
@@ -270,6 +270,12 @@ G.TaskListFilter = Class.create(X.Signals,
     this.filterChanges();
   },
 
+  setupDoneFilter: function(value)
+  {
+    this.done = value;
+    this.filterChanges();
+  },
+
   setupDateLimit: function(from, to)
   {
     this.from_date = Date.parse(from.toString());
@@ -279,9 +285,14 @@ G.TaskListFilter = Class.create(X.Signals,
 
   setupCategoryLimit: function(category)
   {
-    this.category = category;
-    if (typeof this.category != 'object')
-      this.category = this.tasklist.categories.find(function(c) { return c.id == category; });
+    if (!Object.isUndefined(category))
+    {
+      this.category = category;
+      if (typeof this.category != 'object')
+        this.category = this.tasklist.categories.find(function(c) { return c.id == category; });
+    }
+    else
+      this.category = null;
     this.filterChanges();
   },
 
@@ -307,6 +318,9 @@ G.TaskListFilter = Class.create(X.Signals,
         return false;
       // search filter
       if (this.search && ![task.title, task.detail].join(' ').include(this.search))
+        return false;
+      // done filter
+      if (this.done && task.done)
         return false;
       return true;
     }).bind(this));
@@ -766,8 +780,17 @@ G.TaskListView = Class.create(X.Signals,
     this.element.insert(this.e_new_tasks = new Element('div', {'class': 'new_tasks'}));
     this.e_new_tasks.insert(this.e_new_tasks_list = new Element('ul', {'class': 'tasks'}));
     this.element.insert(this.e_list = new Element('div', {'class': 'list'}));
+    this.e_controls.insert(this.b_newtask = new Element('input', {style: 'float: right', type: 'button', value: T('TASKLIST_VIEW_NEW_TASK')}));
     this.e_controls.insert(this.i_search = new Element('input', {type: 'text', value: ''}));
-    this.e_controls.insert(this.b_newtask = new Element('input', {type: 'button', value: T('TASKLIST_VIEW_NEW_TASK')}));
+    this.e_controls.insert(this.i_category = new Element('select'));
+    this.e_controls.appendChild(document.createTextNode(' '+T('TASKLIST_VIEW_ONLY_ACTIVE')+': '));
+    this.e_controls.insert(this.i_done = new Element('input', {type: 'checkbox'}));
+
+    this.loadCategoryOptions();
+    G.app.tasks.connect('categories-changed', this.loadCategoryOptions.bind(this));
+
+    this.i_category.observe('change', this.onCategoryChange.bindAsEventListener(this));
+    this.i_done.observe('change', this.onDoneChange.bindAsEventListener(this));
 
     this.setTitle(title);
     this.b_newtask.observe('click', this.newTaskClick.bindAsEventListener(this));
@@ -780,11 +803,37 @@ G.TaskListView = Class.create(X.Signals,
     this.i_search.observe('keyup', this.onSearchInputChanged.bindAsEventListener(this));
   },
 
+  loadCategoryOptions: function()
+  {
+    var selected = this.i_category.getValue();
+    this.i_category.update();
+    var option = new Element('option', {value: 0});
+    option.update(T('TASKLIST_VIEW_ALL_CATEGORIES'));
+    this.i_category.insert(option);
+    G.app.tasks.categories.each(function(c) {
+      var option = new Element('option', {value: c.id});
+      option.update(c.name.escapeHTML());
+      this.i_category.insert(option);
+    }, this);
+    this.i_category.setValue(selected);
+  },
+
+  onCategoryChange: function(event)
+  {
+    var category_id = Number(this.i_category.getValue());
+      this.filter.setupCategoryLimit(category_id);
+  },
+
+  onDoneChange: function(event)
+  {
+    this.filter.setupDoneFilter(this.i_done.getValue());
+  },
+
   onSearchInputChanged: function(event)
   {
     var search_term = this.i_search.getValue().strip();
     if (search_term.blank())
-      this.filter.resetFilters();
+      this.filter.setupSearch();
     else
       this.filter.setupSearch(search_term);
   },
@@ -935,6 +984,8 @@ G.Locale = Class.create(X.Signals,
     this.strings = {
       TASKLIST_VIEW_HEADER: "Task list",
       TASKLIST_VIEW_NEW_TASK: "New task...",
+      TASKLIST_VIEW_ONLY_ACTIVE: "only active",
+      TASKLIST_VIEW_ALL_CATEGORIES: "All categories",
       TASKEDITOR_CATEGORY: "Category",
       TASKEDITOR_NEW_CATEGORY: "new...",
       TASKEDITOR_DATE: "Date",
@@ -968,6 +1019,8 @@ G.Locale = Class.create(X.Signals,
       this.strings = {
         TASKLIST_VIEW_HEADER: "Seznam úkolů",
         TASKLIST_VIEW_NEW_TASK: "Nový úkol...",
+        TASKLIST_VIEW_ONLY_ACTIVE: "jen aktivní",
+        TASKLIST_VIEW_ALL_CATEGORIES: "Všechny kategorie",
         TASKEDITOR_CATEGORY: "Kategorie",
         TASKEDITOR_NEW_CATEGORY: "nová...",
         TASKEDITOR_DATE: "Datum",
@@ -1005,6 +1058,7 @@ G.App = Class.create(X.Signals,
 {
   initialize: function(el)
   {
+    G.app = this;
     this.element = $(el);
 
     this.locale = new G.Locale(location.href.toQueryParams().lang || 'cs');
