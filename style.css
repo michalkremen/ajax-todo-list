@@ -62,7 +62,6 @@ body {
 .tasklist ul.tasks li.task {
   padding: 6px; 
   margin: 6px 0;
-  background: #f0f0f0;
   background: #c0f0c0;
   -moz-border-radius: 4px;
 }
@@ -78,9 +77,6 @@ body {
 
 .tasklist ul.tasks li.done {
   background: #e0e0e0;
-}
-
-.tasklist ul.tasks li.task:hover {
 }
 
 .tasklist ul.tasks li.task div.title {
@@ -103,13 +99,8 @@ body {
 }
 
 .tasklist ul.tasks li.task .controls {
-  visibility: hidden;
   margin-top: 6px;
   text-align: right;
-}
-
-.tasklist ul.tasks li.task:hover .controls {
-  visibility: visible;
 }
 
 .tasklist ul.tasks li.task .edit textarea {

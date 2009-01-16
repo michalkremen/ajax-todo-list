@@ -651,9 +651,27 @@ G.TaskView = Class.create(X.Signals,
     this.b_delete.observe('click', this.onDeleteClick.bindAsEventListener(this));
     this.b_state.observe('click', this.onStateClick.bindAsEventListener(this));
 
+    if (!Prototype.Browser.IE)
+    {
+      this.e_controls.style.visibility = 'hidden';
+      this.element.observe('mouseover', this.onHover.bindAsEventListener(this, 'in'));
+      this.element.observe('mouseout', this.onHover.bindAsEventListener(this, 'out'));
+    }
+
     this.element.hide();
   },
 
+  /* {{{ Show/hide controls on hover */
+
+  onHover: function(event, dir)
+  {
+    if (($(event.target).descendantOf(this.element) || event.target == this.element) 
+        && ($(event.relatedTarget).descendantOf(this.element) || event.relatedTarget == this.element))
+      return;
+    this.e_controls.style.visibility = (dir == 'in' ? 'visible' : 'hidden');
+  },
+
+  /* }}} */
   /* {{{ Show/hide */
 
   show: function()
@@ -790,7 +808,7 @@ G.TaskListView = Class.create(X.Signals,
     G.app.tasks.connect('categories-changed', this.loadCategoryOptions.bind(this));
 
     this.i_category.observe('change', this.onCategoryChange.bindAsEventListener(this));
-    this.i_done.observe('change', this.onDoneChange.bindAsEventListener(this));
+    this.i_done.observe('click', this.onDoneChange.bindAsEventListener(this));
 
     this.setTitle(title);
     this.b_newtask.observe('click', this.newTaskClick.bindAsEventListener(this));
