@@ -498,7 +498,12 @@ G.TaskEditor = Class.create(X.Signals,
     }
 
     var t = this.i_text.getValue();
-    if (t.strip().length > 0)
+    if (t.strip().length > 1000)
+    {
+      this.i_text.addClassName('error');
+      msgs.push(T('TASKEDITOR_BAD_LONG_TEXT'));
+    }
+    else if (t.strip().length > 0)
     {
       this.i_text.removeClassName('error');
     }
@@ -1013,6 +1018,7 @@ G.Locale = Class.create(X.Signals,
       TASKEDITOR_NEW_CATEGORY_FAILED: "Category was NOT created",
       TASKEDITOR_BAD_DATE: "Wrong date",
       TASKEDITOR_BAD_TEXT: "Task text can't be empty",
+      TASKEDITOR_BAD_LONG_TEXT: "Task text is too long",
       TASKEDITOR_ADD: "Add",
       TASKEDITOR_CLOSE: "Close",
       TASKVIEW_EDIT: "edit",
@@ -1048,6 +1054,7 @@ G.Locale = Class.create(X.Signals,
         TASKEDITOR_NEW_CATEGORY_FAILED: "Kategorie NEBYLA vytvořena",
         TASKEDITOR_BAD_DATE: "Chybné datum",
         TASKEDITOR_BAD_TEXT: "Zadejte text úkolu",
+        TASKEDITOR_BAD_LONG_TEXT: "Text úkolu je příliš dlouhý",
         TASKEDITOR_ADD: "Přidat",
         TASKEDITOR_CLOSE: "Zavřít",
         TASKVIEW_EDIT: "upravit",
