@@ -132,7 +132,7 @@ G.TaskList = Class.create(X.Signals,
     this.load();
     this.executer = new PeriodicalExecuter((function() {
       this.load();
-    }).bind(this), 8);
+    }).bind(this), 3);
   },
 
   /* {{{ Internal methods */
