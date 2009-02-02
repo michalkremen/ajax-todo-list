@@ -1,5 +1,7 @@
 var G = {};
 
+G.dateFormats = ['yyyy-MM-dd', 'dd.MM.YYYY'];
+
 /* {{{ Data model: G.Task */
 
 G.Task = Class.create(X.Signals,
@@ -24,7 +26,7 @@ G.Task = Class.create(X.Signals,
       {
         if (param == 'exdate')
         {
-          var exdate = Date.parse(data[param].toString());
+          var exdate = Date.parseExact(data[param].toString(), G.dateFormats);
           if (!exdate)
             exdate = Date.today();
           if (Object.isUndefined(this.exdate) || !this.exdate.equals(exdate))
@@ -278,8 +280,8 @@ G.TaskListFilter = Class.create(X.Signals,
 
   setupDateLimit: function(from, to)
   {
-    this.from_date = Date.parse(from.toString());
-    this.to_date = Date.parse(to.toString());
+    this.from_date = Date.parseExact(from.toString(), G.dateFormats);
+    this.to_date = Date.parseExact(to.toString(), G.dateFormats);
     this.filterChanges();
   },
 
