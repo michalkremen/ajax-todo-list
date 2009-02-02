@@ -1087,6 +1087,7 @@ G.App = Class.create(X.Signals,
   {
     G.app = this;
     this.element = $(el);
+    var first_load = true;
 
     this.locale = new G.Locale(location.href.toQueryParams().lang || 'cs');
     this.notify = new G.Notify('notify');
@@ -1094,6 +1095,15 @@ G.App = Class.create(X.Signals,
     this.rpc.connect('error', function(e) { this.notify.notify(e.message); }, this);
     this.tasks = new G.TaskList(this.rpc);
     this.tasks.connect('rpc', function(action) {
+      if (action.match(/load/))
+      {
+        if (first_load)
+        {
+          this.notify.notify(T('RPC_LOAD_POST'));
+          first_load = false;
+        }
+        return;
+      }
       this.notify.notify(T('RPC_'+action.underscore().toUpperCase()));
     }, this);
     this.filter = new G.TaskListFilter(this.tasks);
