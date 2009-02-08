@@ -28,6 +28,8 @@ G.Task = Class.create(X.Signals,
         {
           var exdate = Date.parseExact(data[param].toString(), G.dateFormats);
           if (!exdate)
+            exdate = Date.parse(data[param].toString());
+          if (!exdate)
             exdate = Date.today();
           if (Object.isUndefined(this.exdate) || !this.exdate.equals(exdate))
             changed.push(param);
